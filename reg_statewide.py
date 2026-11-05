@@ -30,6 +30,9 @@ def run():
             'document_title': (d.get('document') or {}).get('title'), 'notes': (d.get('notes') or '')[:300]}})
     out = ROOT / 'data' / 'regulations' / 'statewide_towns.geojson'; out.write_text(json.dumps({'type': 'FeatureCollection', 'features': feats}), encoding='utf-8')
     c = Counter(f['properties']['status'] for f in feats)
+    (ROOT / 'data' / 'regulations' / 'statewide_summary.json').write_text(json.dumps({
+        'municipalities': len(feats), 'towns_mapped': sum(1 for f in feats if f['properties']['signs']), 'stop_signs': len(signs),
+        'with_direction_pct': round(100 * sum(nd.values()) / max(1, len(signs))), 'searched': sum(1 for f in feats if f['properties']['search_status'])}), encoding='utf-8')
     print(f'statewide_towns.geojson: {len(feats)} towns {dict(c)}; {len(signs)} signs', flush=True)
 
 
