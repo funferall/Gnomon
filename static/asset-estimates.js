@@ -1,0 +1,37 @@
+/* Estimated physical asset positions from Mapillary SfM geometry. Machine estimates; nothing here is reviewed. */
+const $=id=>document.getElementById(id);
+const COLORS={'fire hydrant':'#e0302b','stop sign':'#9b1d5a','traffic light':'#1f8a4c','traffic sign':'#e7a21c','street name sign':'#2a7fd4','speed limit sign':'#6b4fc8','one way sign':'#14a3a3','bollard':'#7a6a58','manhole cover':'#3d4b55','storm drain':'#5d8aa8'};
+const map=L.map('map',{preferCanvas:true}).setView([42.2965,-71.2925],14);addMassGISBasemaps(map,'2025');
+const pts=L.layerGroup().addTo(map),ellipses=L.layerGroup(),selection=L.layerGroup().addTo(map),truth=L.layerGroup();
+let all=[],enabled=new Set(Object.keys(COLORS));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function ellipse(lat,lon,e){const out=[],t=e.major_axis_azimuth_deg*Math.PI/180,a=e.semi_major95_m,b=e.semi_minor95_m,k=111320,kl=k*Math.cos(lat*Math.PI/180);
+ for(let i=0;i<=40;i++){const p=i/40*2*Math.PI,de=Math.sin(t)*a*Math.cos(p)+Math.cos(t)*b*Math.sin(p),dn=Math.cos(t)*a*Math.cos(p)-Math.sin(t)*b*Math.sin(p);out.push([lat+dn/k,lon+de/kl])}return out}
+function visible(f){const p=f.properties;return enabled.has(p.class)&&p.uncertainty95_m<=+$('unc').value&&(p.state==='multi_view_estimate'?$('show-multi').checked:$('show-single').checked)}
+function render(){pts.clearLayers();ellipses.clearLayers();let n=0;
+ for(const f of all){if(!visible(f))continue;n++;const [lon,lat]=f.geometry.coordinates,p=f.properties,multi=p.state==='multi_view_estimate',col=COLORS[p.class]||'#444';
+  L.circleMarker([lat,lon],{radius:multi?5:3.5,color:multi?'#fff':col,weight:multi?1.5:1,fillColor:col,fillOpacity:multi?.95:.45}).on('click',()=>select(f)).bindTooltip(`${p.class} · ±${p.uncertainty95_m} m · ${p.n_observations} view${p.n_observations>1?'s':''}`).addTo(pts);
+  L.polygon(ellipse(lat,lon,p.ellipse),{color:col,weight:1,fillOpacity:.08,interactive:false}).addTo(ellipses)}
+ $('count').textContent=`${n.toLocaleString()} of ${all.length.toLocaleString()} estimates shown`}
+function select(f){selection.clearLayers();history.replaceState(null,'','#estimate='+f.properties.asset_estimate_id);const p=f.properties,[lon,lat]=f.geometry.coordinates,col=COLORS[p.class]||'#444';
+ for(const s of p.sightings){L.polyline([[s.camera[1],s.camera[0]],[lat,lon]],{color:'#ffe371',weight:2,opacity:.9,interactive:false}).addTo(selection);L.circleMarker([s.camera[1],s.camera[0]],{radius:3,color:'#102e3a',fillColor:'#fff',fillOpacity:1,weight:1.5,interactive:false}).addTo(selection)}
+ L.polygon(ellipse(lat,lon,p.ellipse),{color:col,weight:2,fillOpacity:.15,interactive:false}).addTo(selection);
+ const multi=p.state==='multi_view_estimate';
+ $('detail').innerHTML=`<h2>${esc(p.class)}</h2><dl class="kv"><dt>Method</dt><dd>${multi?'Multi-view triangulation':'Single view, fused range'}</dd><dt>95% radius</dt><dd>${p.uncertainty95_m} m absolute (${p.ellipse.semi_major95_m.toFixed(1)} × ${p.ellipse.semi_minor95_m.toFixed(1)} m)</dd><dt>Relative</dt><dd>±${(p.ellipse.relative95_m??0).toFixed(2)} m within the SfM frame</dd><dt>Views</dt><dd>${p.n_observations} in ${p.n_images} images, ${p.n_sequences} pass${p.n_sequences>1?'es':''}</dd><dt>Ray spread</dt><dd>${p.max_ray_angle_deg}°</dd><dt>Fit χ²/dof</dt><dd>${p.reduced_chi2}</dd><dt>Position</dt><dd>${lat.toFixed(6)}, ${lon.toFixed(6)}</dd></dl>${p.flags.map(x=>`<span class="flag">${esc(x.replaceAll('_',' '))}</span>`).join('')}
+ <h3>Sightings · range by cue</h3><div class="sightings">${p.sightings.map((s,i)=>`<button class="sighting" type="button" data-i="${i}"><img src="${esc(s.crop)}" alt="${esc(p.class)} crop" loading="lazy">${s.range_m?s.range_m+' m':'no range'}<br><span class="muted">${Object.entries(s.cues).map(([k,q])=>`${k} ${q.range_m}${q.rejected?'✗':''}`).join(' · ')}</span></button>`).join('')}</div>
+ <p class="muted">Unreviewed estimate. Ranges: sfm = Mapillary SfM points in box; ground = ground-contact ray on fitted road plane; size = standard object height. ✗ = rejected as inconsistent.</p>`;
+ $('detail').querySelectorAll('.sighting').forEach(b=>b.onclick=()=>show(p,p.sightings[+b.dataset.i]))}
+function show(p,s){if(!s.view_file)return;$('viewer').hidden=false;$('viewer-title').textContent=`${p.class} · image ${s.image_id} · score ${s.score}`;const img=$('viewer-img'),[x1,y1,x2,y2]=s.bbox_xyxy;
+ img.onload=()=>Object.assign($('viewer-box').style,{left:`${100*x1/s.image_width}%`,top:`${100*y1/s.image_height}%`,width:`${100*(x2-x1)/s.image_width}%`,height:`${100*(y2-y1)/s.image_height}%`});img.src=s.view_file}
+$('viewer-close').onclick=()=>$('viewer').hidden=true;
+function legend(counts){$('classes').innerHTML=Object.keys(COLORS).filter(k=>counts[k]).map(k=>`<label><input type="checkbox" data-c="${esc(k)}" checked><span class="swatch" style="background:${COLORS[k]}"></span>${esc(k)} <span class="n">${counts[k]}</span></label>`).join('');
+ $('classes').querySelectorAll('input').forEach(i=>i.onchange=()=>{i.checked?enabled.add(i.dataset.c):enabled.delete(i.dataset.c);render()})}
+function bench(s){const b=s?.hydrant_benchmark;if(!b)return;const r=(k,v)=>v&&v.n?`<tr><td>${k}</td><td>${v.n}</td><td>${v.median_m}</td><td>${v.p90_m}</td><td>${Math.round(100*v.within_2m)}%</td><td>${Math.round(100*v.within_5m)}%</td></tr>`:'';
+ $('bench').innerHTML=`<h2>Hydrant accuracy check</h2><p class="muted">Against Wellesley's published hydrant layer (never used for fitting). Error in meters.</p><table><tr><th></th><th>n</th><th>median</th><th>p90</th><th>≤2 m</th><th>≤5 m</th></tr>${r('Triangulated',b.asset_error.multi_view_estimate)}${r('Single view',b.asset_error.provisional_single_view)}${r('Camera GPS (naive)',b.baseline_camera_position_as_location)}</table><p class="muted">95% ellipse contains the town point ${Math.round(100*(b.uncertainty95_coverage||0))}% of the time.</p>`}
+['show-multi','show-single','unc'].forEach(id=>$(id).oninput=()=>{$('unc-out').textContent=$('unc').value+' m';render()});
+$('show-ellipses').onchange=e=>e.target.checked?ellipses.addTo(map):ellipses.remove();
+$('show-truth').onchange=async e=>{if(!e.target.checked)return truth.remove();if(!truth.getLayers().length){const g=await (await fetch('data/wellesley/ground_truth/wellesley_hydrants.geojson')).json();for(const f of g.features){const [lon,lat]=f.geometry.coordinates;L.circleMarker([lat,lon],{radius:4,color:'#000',weight:1.5,fill:false,interactive:false}).addTo(truth)}}truth.addTo(map)};
+(async()=>{try{const [g,s]=await Promise.all([fetch('data/wellesley/asset-estimates.geojson').then(r=>r.json()),fetch('data/wellesley/asset-estimates-summary.json').then(r=>r.ok?r.json():null).catch(()=>null)]);
+ all=g.features.sort((a,b)=>(a.properties.state==='multi_view_estimate')-(b.properties.state==='multi_view_estimate'));const counts={};for(const f of all)counts[f.properties.class]=(counts[f.properties.class]||0)+1;legend(counts);bench(s);render();
+ const want=new URLSearchParams(location.hash.slice(1)).get('estimate'),hit=want&&all.find(f=>f.properties.asset_estimate_id===want);
+ if(hit){map.setView([hit.geometry.coordinates[1],hit.geometry.coordinates[0]],20);select(hit)}else if(all.length)map.fitBounds(L.latLngBounds(all.map(f=>[f.geometry.coordinates[1],f.geometry.coordinates[0]])),{padding:[20,20]})}catch(e){$('count').textContent='Could not load estimates. Run: python asset_localization.py run'}})();

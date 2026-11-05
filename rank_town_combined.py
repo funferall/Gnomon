@@ -1,0 +1,19 @@
+import geopandas as gpd, pandas as pd, numpy as np, shapely, json, math
+from pathlib import Path
+D=Path('data');rds=[]
+for file in sorted((D/'tiger_roads').glob('*.zip')):
+ g=gpd.read_file('zip://'+str(file));g=g[g.MTFCC.isin(['S1200','S1400'])][['LINEARID','MTFCC','geometry']];rds.append(g);print(file.name,len(g),flush=True)
+roads=gpd.GeoDataFrame(pd.concat(rds,ignore_index=True),crs=rds[0].crs).drop_duplicates('LINEARID').to_crs(26986);roads=roads[roads.geometry.notna() & ~roads.geometry.is_empty & (roads.geometry.geom_type=='LineString')].reset_index(drop=True)
+towns=gpd.read_file('zip://data/towns.zip');towns=towns[towns.CLASSFP.isin(['T1','C5'])].to_crs(26986).reset_index(drop=True);print('roads',len(roads),'towns',len(towns),flush=True)
+coverage=gpd.read_parquet(D/'mapillary_z9_lines.parquet');karta=gpd.read_parquet(D/'kartaview_z9_lines.parquet');pan=pd.read_csv(D/'panoramax_massachusetts_images.csv');pan=gpd.GeoDataFrame(pan,geometry=gpd.points_from_xy(pan.lon,pan.lat),crs=4326).to_crs(26986);print('coverage',len(coverage),'kartaview',len(karta),'panoramax',len(pan),flush=True)
+maptree=shapely.STRtree(coverage.geometry.array);coverall=shapely.STRtree(np.concatenate([coverage.geometry.array,karta.geometry.array,pan.geometry.array]));recent=coverage[(coverage.year>=2024)&(coverage.year<=2026)];panyear=pd.to_datetime(pan.captured_at,errors='coerce').dt.year;panrecent=pan[(panyear>=2024)&(panyear<=2026)];covertree_recent=shapely.STRtree(np.concatenate([recent.geometry.array,panrecent.geometry.array]));town_tree=shapely.STRtree(towns.geometry.array)
+n=len(towns);total=np.zeros(n);within30=np.zeros(n);within15=np.zeros(n);recent30=np.zeros(n);map30=np.zeros(n);samplecount=np.zeros(n,dtype=int)
+for start in range(0,len(roads),5000):
+ subset=roads.geometry.array[start:start+5000];length=shapely.length(subset);valid=np.isfinite(length)&(length>0);subset=subset[valid];length=length[valid];number=np.maximum(1,np.ceil(length/50).astype(int));index=np.repeat(np.arange(len(number)),number);starts=np.repeat(np.cumsum(number)-number,number);positions=(np.arange(len(index))-starts+.5)/number[index]*length[index];points=shapely.line_interpolate_point(subset[index],positions);weights=length[index]/number[index];pairs=town_tree.query(points,predicate='within');pointidx,townidx=pairs;points=points[pointidx];weights=weights[pointidx];np.add.at(total,townidx,weights);np.add.at(samplecount,townidx,1)
+ if len(points):
+  pairs,dist=coverall.query_nearest(points,all_matches=False,return_distance=True,max_distance=30);idx=pairs[0];np.add.at(within30,townidx[idx[dist<=30]],weights[idx[dist<=30]]);np.add.at(within15,townidx[idx[dist<=15]],weights[idx[dist<=15]]);
+  pairs,dist=maptree.query_nearest(points,all_matches=False,return_distance=True,max_distance=30);idx=pairs[0];np.add.at(map30,townidx[idx[dist<=30]],weights[idx[dist<=30]]);
+  pairs,dist=covertree_recent.query_nearest(points,all_matches=False,return_distance=True,max_distance=30);idx=pairs[0];np.add.at(recent30,townidx[idx[dist<=30]],weights[idx[dist<=30]])
+ print('processed',min(start+5000,len(roads)),'/',len(roads),flush=True)
+out=pd.DataFrame({'town':towns.NAME,'county_fips':towns.COUNTYFP,'town_geoid':towns.GEOID,'road_miles':total/1609.344,'covered_miles_30m':within30/1609.344,'covered_pct_30m':np.divide(within30*100,total,out=np.zeros(n),where=total>0),'covered_pct_15m':np.divide(within15*100,total,out=np.zeros(n),where=total>0),'recent_2024_plus_pct_30m':np.divide(recent30*100,total,out=np.zeros(n),where=total>0),'mapillary_pct_30m':np.divide(map30*100,total,out=np.zeros(n),where=total>0),'road_sample_points':samplecount});out.sort_values('covered_pct_30m',ascending=False).round(2).to_csv(D/'town_road_coverage_rank.csv',index=False);print(out.sort_values('covered_pct_30m',ascending=False).head(30).round(1).to_string(index=False),flush=True)
+

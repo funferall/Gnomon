@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Estimated asset positions</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><link rel="stylesheet" href="static/assets.css"></head>
+<body><header><div><h1>Estimated asset positions</h1><p>Wellesley · Mapillary SfM geometry · unreviewed machine estimates</p></div><div class="header-note">Points are estimated object locations, not camera positions <span>·</span> <a href="index.html?dataset=wellesley">Camera viewer</a> <span>·</span> <a href="review.html">Review</a></div></header>
+<main><aside class="panel" aria-label="Filters and details">
+<section><h2>Show</h2><div id="classes" class="classes"></div>
+<label class="row"><input type="checkbox" id="show-multi" checked> Multi-view triangulated</label>
+<label class="row"><input type="checkbox" id="show-single" checked> Single-view estimates</label>
+<label class="row">Max 95% uncertainty <output id="unc-out">25 m</output></label><input type="range" id="unc" min="4" max="25" step="0.5" value="25" aria-label="Maximum 95 percent uncertainty in meters">
+<label class="row"><input type="checkbox" id="show-ellipses"> Uncertainty ellipses</label>
+<label class="row"><input type="checkbox" id="show-truth"> Town hydrant layer (benchmark)</label>
+<p id="count" class="muted" role="status">Loading…</p></section>
+<section id="bench"></section>
+<section id="detail"><h2>Selected estimate</h2><p class="muted">Click a point. Rays are drawn from every camera that saw it.</p></section>
+</aside>
+<div class="map-wrap"><div id="map"></div>
+<div id="viewer" hidden><div class="viewer-bar"><strong id="viewer-title"></strong><button id="viewer-close" type="button" aria-label="Close image">×</button></div><div class="viewer-frame"><img id="viewer-img" alt="Source view with detection box"><div id="viewer-box"></div></div></div></div>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="static/map-layers.js"></script><script src="static/asset-estimates.js"></script></body></html>

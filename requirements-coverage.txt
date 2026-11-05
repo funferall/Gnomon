@@ -1,0 +1,6 @@
+﻿duckdb>=1.4
+geopandas>=1.0
+pyogrio>=0.9
+requests>=2.31
+mercantile>=1.2
+mapbox-vector-tile>=2.0

@@ -1,0 +1,496 @@
+{
+  "operationalLayers": [
+    {
+      "id": "Open_Data_Layers_2739",
+      "showLegend": false,
+      "opacity": 1,
+      "disablePopup": true,
+      "title": "Address Numbers",
+      "url": "https://services6.arcgis.com/f6G5SbcwuEVmR1CW/arcgis/rest/services/Open_Data_Layers/FeatureServer/2",
+      "visibility": true,
+      "itemId": "75ac973ecbcc4586837da66ad440a789",
+      "layerType": "ArcGISFeatureLayer",
+      "layerDefinition": {
+        "fieldConfigurations": [
+          {
+            "alias": "Feature ID",
+            "name": "FeatureID",
+            "fieldFormat": {
+              "type": "number",
+              "useGrouping": "never"
+            }
+          },
+          {
+            "alias": "Address",
+            "name": "AddressNum"
+          }
+        ],
+        "drawingInfo": {
+          "labelingInfo": [
+            {
+              "deconflictionStrategy": "none",
+              "labelExpression": "[AddressNum]",
+              "labelExpressionInfo": {
+                "expression": "$feature[\"AddressNum\"]"
+              },
+              "labelPlacement": "esriServerPointLabelPlacementCenterCenter",
+              "maxScale": 0,
+              "minScale": 3200,
+              "repeatLabel": true,
+              "symbol": {
+                "type": "esriTS",
+                "color": [
+                  255,
+                  255,
+                  255,
+                  255
+                ],
+                "font": {
+                  "family": "Arial",
+                  "size": 10.5,
+                  "weight": "bold"
+                },
+                "horizontalAlignment": "left",
+                "kerning": true,
+                "haloColor": [
+                  41,
+                  41,
+                  41,
+                  255
+                ],
+                "haloSize": 1.875,
+                "rightToLeft": false,
+                "rotated": false,
+                "text": "",
+                "verticalAlignment": "bottom",
+                "xoffset": 0,
+                "yoffset": 0,
+                "angle": 0
+              },
+              "useCodedValues": true
+            }
+          ],
+          "renderer": {
+            "type": "simple",
+            "symbol": {
+              "type": "esriSMS",
+              "color": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "angle": 0,
+              "xoffset": 0,
+              "yoffset": 0,
+              "size": 2,
+              "style": "esriSMSCircle",
+              "outline": {
+                "type": "esriSLS",
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "width": 0,
+                "style": "esriSLSSolid"
+              }
+            }
+          }
+        }
+      },
+      "showLabels": true
+    },
+    {
+      "id": "Adopted_Hydrants_8056",
+      "opacity": 1,
+      "title": "Adopted Hydrants",
+      "url": "https://services6.arcgis.com/f6G5SbcwuEVmR1CW/arcgis/rest/services/Adopted_Hydrants/FeatureServer/0",
+      "visibility": true,
+      "itemId": "6c435f229d204501b94d12a92fd3c253",
+      "layerType": "ArcGISFeatureLayer",
+      "refreshInterval": 0.1,
+      "layerDefinition": {
+        "minScale": 160000,
+        "maxScale": 0,
+        "drawingInfo": {
+          "renderer": {
+            "type": "simple",
+            "symbol": {
+              "type": "esriPMS",
+              "angle": 0,
+              "xoffset": 0,
+              "yoffset": 0,
+              "contentType": "image/png",
+              "imageData": "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",
+              "url": "https://services6.arcgis.com/f6G5SbcwuEVmR1CW/arcgis/rest/services/Adopted_Hydrants/FeatureServer/0/images/7b122649-c09c-416e-9116-67718f84d6fd",
+              "height": 12,
+              "width": 12
+            }
+          }
+        }
+      },
+      "popupInfo": {
+        "popupElements": [
+          {
+            "type": "text",
+            "text": "<font size='5'>Hydrant #<span style='color: rgb(178, 34, 34);'>{MapID} </span>has been adopted by <span style='color: rgb(65, 105, 225);'>{AdoptedBy}</span>.</font>"
+          },
+          {
+            "type": "attachments",
+            "displayType": "auto"
+          }
+        ],
+        "description": "<font size='5'>Hydrant #<span style='color: rgb(178, 34, 34);'>{MapID} </span>has been adopted by <span style='color: rgb(65, 105, 225);'>{AdoptedBy}</span>.</font>",
+        "showAttachments": true,
+        "fieldInfos": [
+          {
+            "fieldName": "OBJECTID",
+            "isEditable": false,
+            "label": "OBJECTID",
+            "tooltip": "",
+            "visible": false
+          },
+          {
+            "fieldName": "MapID",
+            "isEditable": true,
+            "label": "Map ID",
+            "tooltip": "",
+            "visible": true
+          },
+          {
+            "fieldName": "StreetNumber",
+            "isEditable": true,
+            "label": "Street Number",
+            "tooltip": "",
+            "visible": true
+          },
+          {
+            "fieldName": "StreetName",
+            "isEditable": true,
+            "label": "Street Name",
+            "tooltip": "",
+            "visible": true
+          },
+          {
+            "fieldName": "AdoptedBy",
+            "isEditable": true,
+            "label": "Adopted By",
+            "tooltip": "",
+            "visible": true
+          }
+        ],
+        "title": ""
+      }
+    },
+    {
+      "id": "Available_Hydrants_7859",
+      "opacity": 1,
+      "disablePopup": false,
+      "title": "Available Hydrants",
+      "url": "https://services6.arcgis.com/f6G5SbcwuEVmR1CW/arcgis/rest/services/Available_Hydrants/FeatureServer/0",
+      "visibility": true,
+      "itemId": "85af22adadf040a1a5f30ddc7932607b",
+      "layerType": "ArcGISFeatureLayer",
+      "refreshInterval": 0.1,
+      "layerDefinition": {
+        "fieldConfigurations": [
+          {
+            "name": "AdoptedDate",
+            "fieldFormat": {
+              "type": "date-time",
+              "dateStyle": "short",
+              "hour12": "always"
+            }
+          }
+        ],
+        "drawingInfo": {
+          "renderer": {
+            "type": "simple",
+            "symbol": {
+              "type": "esriPMS",
+              "angle": 0,
+              "xoffset": 0,
+              "yoffset": 0,
+              "contentType": "image/png",
+              "imageData": "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",
+              "url": "https://services6.arcgis.com/f6G5SbcwuEVmR1CW/arcgis/rest/services/Available_Hydrants/FeatureServer/0/images/c6bee3f0-03fd-4d80-9513-d3fa1f37cc7d",
+              "height": 12,
+              "width": 12
+            }
+          }
+        }
+      },
+      "formInfo": {
+        "formElements": [
+          {
+            "description": "Locked",
+            "label": "Adopted Date",
+            "type": "field",
+            "editableExpression": "expr/system/false",
+            "fieldName": "AdoptedDate",
+            "hint": "Current Date",
+            "inputType": {
+              "type": "datetime-picker",
+              "includeTime": false
+            },
+            "requiredExpression": "expr/system/true",
+            "valueExpression": "expr/new-expression"
+          },
+          {
+            "label": "Adopted By",
+            "type": "field",
+            "editableExpression": "expr/system/true",
+            "fieldName": "AdoptedBy",
+            "hint": "Individual or Family Name",
+            "inputType": {
+              "type": "text-box",
+              "maxLength": 100,
+              "minLength": 0
+            },
+            "requiredExpression": "expr/system/true"
+          },
+          {
+            "label": "Email Address",
+            "type": "field",
+            "editableExpression": "expr/system/true",
+            "fieldName": "EmailAddress",
+            "hint": "Contact Email",
+            "inputType": {
+              "type": "text-box",
+              "maxLength": 100,
+              "minLength": 0
+            },
+            "requiredExpression": "expr/system/true"
+          },
+          {
+            "description": "",
+            "label": "Phone Number",
+            "type": "field",
+            "editableExpression": "expr/system/true",
+            "fieldName": "PhoneNumber",
+            "hint": "Optional: Contact Phone Number",
+            "inputType": {
+              "type": "text-box",
+              "maxLength": 15,
+              "minLength": 0
+            }
+          }
+        ],
+        "expressionInfos": [
+          {
+            "expression": "true",
+            "name": "expr/system/true",
+            "returnType": "boolean",
+            "title": "True"
+          },
+          {
+            "expression": "false",
+            "name": "expr/system/false",
+            "returnType": "boolean",
+            "title": "False"
+          },
+          {
+            "expression": "Now()",
+            "name": "expr/new-expression",
+            "returnType": "date",
+            "title": "Now Expression"
+          }
+        ],
+        "supportsAttachmentElements": true,
+        "title": "Hydrant {MapID}: {StreetNumber} {StreetName}"
+      },
+      "showLabels": true,
+      "popupInfo": {
+        "popupElements": [
+          {
+            "type": "fields",
+            "description": "",
+            "fieldInfos": [
+              {
+                "fieldName": "MapID",
+                "isEditable": false,
+                "label": "Map ID",
+                "tooltip": "",
+                "visible": true
+              },
+              {
+                "fieldName": "StreetNumber",
+                "isEditable": false,
+                "label": "Street Number",
+                "tooltip": "",
+                "visible": true
+              },
+              {
+                "fieldName": "StreetName",
+                "isEditable": false,
+                "label": "Street Name",
+                "tooltip": "",
+                "visible": true
+              },
+              {
+                "fieldName": "AdoptedBy",
+                "isEditable": true,
+                "label": "Adopted By",
+                "tooltip": "Individual or Family Name",
+                "visible": true
+              },
+              {
+                "fieldFormat": {
+                  "type": "date-time",
+                  "dateStyle": "short",
+                  "hour12": "always"
+                },
+                "fieldName": "AdoptedDate",
+                "format": {
+                  "dateFormat": "shortDate",
+                  "digitSeparator": false
+                },
+                "isEditable": true,
+                "label": "Adopted Date",
+                "tooltip": "Current Date",
+                "visible": true
+              },
+              {
+                "fieldName": "EmailAddress",
+                "isEditable": true,
+                "label": "Email Address",
+                "tooltip": "Contact Email",
+                "visible": true
+              },
+              {
+                "fieldName": "PhoneNumber",
+                "isEditable": true,
+                "label": "Phone Number",
+                "tooltip": "Optional: Contact Phone Number",
+                "visible": true
+              }
+            ],
+            "title": ""
+          }
+        ],
+        "expressionInfos": [
+          {
+            "name": "expr0",
+            "title": "Nearest Address",
+            "expression": "var num = $feature.StreetNumber;\r\nvar street = $feature.StreetName;\r\n\r\nif ((IsEmpty(num)) && (IsEmpty(street))) {\r\n  return null;\r\n} else if ((IsEmpty(num)) && (!IsEmpty(street))) {\r\n  return street;\r\n} else if ((!IsEmpty(num)) && (IsEmpty(street))) {\r\n  return null;\r\n} else {\r\n  return num + \" \" + street\r\n}",
+            "returnType": "string"
+          }
+        ],
+        "fieldInfos": [
+          {
+            "fieldName": "OBJECTID",
+            "isEditable": false,
+            "label": "OBJECTID",
+            "tooltip": "",
+            "visible": false
+          },
+          {
+            "fieldName": "MapID",
+            "isEditable": false,
+            "label": "Map ID",
+            "tooltip": "",
+            "visible": true
+          },
+          {
+            "fieldName": "StreetNumber",
+            "isEditable": false,
+            "label": "Street Number",
+            "tooltip": "",
+            "visible": true
+          },
+          {
+            "fieldName": "StreetName",
+            "isEditable": false,
+            "label": "Street Name",
+            "tooltip": "",
+            "visible": true
+          },
+          {
+            "fieldName": "AdoptedBy",
+            "isEditable": true,
+            "label": "Adopted By",
+            "tooltip": "Individual or Family Name",
+            "visible": true
+          },
+          {
+            "fieldName": "AdoptedDate",
+            "format": {
+              "dateFormat": "shortDate",
+              "digitSeparator": false
+            },
+            "isEditable": true,
+            "label": "Adopted Date",
+            "tooltip": "Current Date",
+            "visible": true
+          },
+          {
+            "fieldName": "EmailAddress",
+            "isEditable": true,
+            "label": "Email Address",
+            "tooltip": "Contact Email",
+            "visible": true
+          },
+          {
+            "fieldName": "PhoneNumber",
+            "isEditable": true,
+            "label": "Phone Number",
+            "tooltip": "Optional: Contact Phone Number",
+            "visible": true
+          },
+          {
+            "fieldName": "expression/expr0",
+            "isEditable": true,
+            "visible": false
+          }
+        ],
+        "title": "Hydrant {MapID}"
+      }
+    }
+  ],
+  "baseMap": {
+    "baseMapLayers": [
+      {
+        "id": "VectorTile_3150",
+        "opacity": 1,
+        "title": "Planimetric_Basemap",
+        "visibility": true,
+        "layerType": "VectorTileLayer",
+        "styleUrl": "https://tiles.arcgis.com/tiles/f6G5SbcwuEVmR1CW/arcgis/rest/services/Planimetric_Basemap/VectorTileServer/resources/styles/root.json"
+      }
+    ],
+    "title": "Wellesley Street Map"
+  },
+  "applicationProperties": {
+    "viewing": {
+      "search": {
+        "disablePlaceFinder": false,
+        "enabled": false,
+        "hintText": "Place or Address"
+      }
+    }
+  },
+  "authoringApp": "ArcGISMapViewer",
+  "authoringAppVersion": "2026.2",
+  "initialState": {
+    "viewpoint": {
+      "targetGeometry": {
+        "spatialReference": {
+          "latestWkid": 3857,
+          "wkid": 102100
+        },
+        "xmin": -7939802.692031138,
+        "ymin": 5201979.026695095,
+        "xmax": -7929770.332068723,
+        "ymax": 5210176.897978669
+      }
+    }
+  },
+  "spatialReference": {
+    "latestWkid": 3857,
+    "wkid": 102100
+  },
+  "timeZone": "system",
+  "version": "2.37"
+}

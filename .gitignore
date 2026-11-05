@@ -1,0 +1,12 @@
+# secrets
+.env
+# generated data, imagery, databases (regenerate with the pipeline scripts)
+data/
+*.sqlite
+*.sqlite-*
+# model weights (downloaded)
+*.pt
+# local scratch
+chat.txt
+__pycache__/
+*.pyc
