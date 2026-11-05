@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Traffic regulations map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><link rel="stylesheet" href="static/assets.css">
+<style>
+.legend-row{display:flex;align-items:center;gap:8px;margin:5px 0}.legend-row svg{flex:none}.legend-row .n{margin-left:auto}
+.popup h3{margin:0 0 4px;font-size:14px;text-transform:none;letter-spacing:0;color:inherit}.popup p{margin:3px 0;font-size:12px}.popup q{display:block;margin:6px 0;padding:6px 8px;background:#f1f5f5;border-radius:4px;font-size:12px;quotes:none}
+.unres{max-height:260px;overflow:auto;font-size:12px}.unres li{margin:0 0 6px}
+</style></head>
+<body><header><div><h1>Traffic regulations → map</h1><p>Wellesley Traffic Rules and Orders (updated January 2026) · machine-extracted, unreviewed</p></div>
+<div class="header-note"><a href="data/regulations/wellesley/source.pdf" target="_blank">Source PDF</a> <span>·</span> <a href="assets.html">Imagery estimates</a></div></header>
+<main><aside class="panel">
+<section><h2>Layers</h2><div id="legend"></div><p class="muted" style="margin-top:8px">Filled symbols: also found in street imagery. Hollow: required by the regulations but not detected yet (imagery scanning is incomplete).</p></section>
+<section id="detail"><h2>Selected</h2><p class="muted">Click a symbol to see the regulation text, page and placement details.</p></section>
+<section><h2>Needs a human (<span id="unres-n">0</span>)</h2><ul class="unres" id="unres"></ul></section>
+</aside><div class="map-wrap"><div id="map"></div></div></main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="static/map-layers.js"></script><script src="static/regulations.js"></script></body></html>

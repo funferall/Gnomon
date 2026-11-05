@@ -17,6 +17,27 @@ Turn street-level imagery into a reviewed, mapped inventory of roadside assets (
 
 **Accuracy (Wellesley hydrants):** median error **2.1 m** against 7.1 m for using camera GPS, and 94% within 5 m. The 95% uncertainty ellipses contain the town's point 91% of the time. Details in [LOCALIZATION.md](LOCALIZATION.md).
 
+## Traffic regulations → map
+
+Towns record stop signs, turn prohibitions and one-way streets in their *Traffic Rules and Orders*: legal text with no coordinates. Gnomon turns that text into GIS layers, so the imagery can be checked against what the law requires. Plan and results: [REGULATIONS_PLAN.md](REGULATIONS_PLAN.md).
+
+1. **Extract** the PDF text in row order (`pdftotext -raw`).
+2. **Parse** the table schedules (stop, yield, turn on red) with code. Each row is split into *on street / at street / direction* by matching the town's street names.
+3. **Read** the free-form schedules (turns, one-way) with OpenAI `gpt-6-luna`, validated against the street names. A record is kept only if 2 of 3 runs agree.
+4. **Geocode** to the intersection of the two street centerlines. No geocoding service is needed.
+5. **Place** each sign on the approach for the stated direction, right-hand side, with distances self-calibrated against signs triangulated from imagery.
+6. **Cross-check** against imagery detections: required-but-not-seen and seen-but-not-required become review lists.
+
+![Wellesley regulations mapped: stop signs, no-turn-on-red, prohibited turns and one-way streets](docs/regulations-map.jpg)
+
+**Wellesley:** 212 of about 235 listed stop signs placed (90%), plus 8 yield signs, 18 turn-on-red rules, 7 prohibited turns and 6 one-way streets. Placement error is a 4.4 m median against imagery-triangulated signs. Model reading of the free-form schedules scored 99.5% field accuracy against hand-checked answers, at about $0.002 per document. Unplaced rows are listed with reasons for review.
+
+```
+python reg_harness.py run          # parse, geocode, place, cross-check (no model)
+python reg_ai.py all               # free-form schedules with gpt-6-luna (OPENAI_API_KEY)
+python -m http.server 8000         # → http://localhost:8000/regulations.html
+```
+
 ## Run it
 
 ```
@@ -38,6 +59,7 @@ In the workbench, press `?` for shortcuts and `,` for settings (map symbology, l
 
 - [LOCALIZATION.md](LOCALIZATION.md): positioning method, verified conventions, results, limits
 - [POSITION_ERROR_AND_SIGN_PLACEMENT.md](POSITION_ERROR_AND_SIGN_PLACEMENT.md): camera GPS errors and placement rules
+- [REGULATIONS_PLAN.md](REGULATIONS_PLAN.md): traffic regulations → GIS, scaling to Massachusetts
 - [research/ground_truth_sources.md](research/ground_truth_sources.md): existing sign, signal and hydrant data in Wellesley and Massachusetts
 - [PLAN.md](PLAN.md), [WELLESLEY_METHODOLOGY.md](WELLESLEY_METHODOLOGY.md), [REVIEW_AND_BENCHMARK.md](REVIEW_AND_BENCHMARK.md), [COVERAGE.md](COVERAGE.md): project plan, inventory, review and coverage notes
 - [PRODUCT.md](PRODUCT.md): workbench design brief
