@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Massachusetts stop signs</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><link rel="stylesheet" href="static/assets.css">
+<style>
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}.stat div{background:#f1f5f5;border-radius:6px;padding:8px}.stat b{display:block;font-size:20px;font-variant-numeric:tabular-nums}.stat span{font-size:11px;color:var(--muted)}
+.legend-row{display:flex;align-items:center;gap:8px;margin:4px 0}.sw{width:14px;height:14px;border-radius:3px;display:inline-block;flex:none}
+#towns-list{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+#towns-list button{display:flex;justify-content:space-between;width:100%;padding:5px 8px;border:0;border-bottom:1px solid #eef2f2;background:#fff;font:inherit;font-size:12px;cursor:pointer;text-align:left}
+#towns-list button:hover,#towns-list button.sel{background:#e9f4f1}#towns-list .n{color:var(--muted);font-variant-numeric:tabular-nums}
+#q{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;font:inherit}
+.popup p{margin:3px 0;font-size:12px}.popup q{display:block;margin:6px 0;padding:6px 8px;background:#f1f5f5;border-radius:4px;font-size:12px;quotes:none}
+</style></head>
+<body><header><div><h1>Massachusetts stop signs from town regulations</h1><p>Traffic Rules &amp; Orders → map · machine-extracted, unreviewed</p></div>
+<div class="header-note"><a href="swarm.html">Swarm dashboard</a> <span>·</span> <a href="regulations.html">Wellesley detail</a></div></header>
+<main><aside class="panel">
+<section><div class="stat"><div><b id="s-towns">–</b><span>towns mapped</span></div><div><b id="s-signs">–</b><span>stop signs</span></div><div><b id="s-dir">–</b><span>with direction</span></div></div>
+<label class="legend-row"><input type="checkbox" id="show-signs" checked> <i class="sw" style="background:#d0202a;border-radius:50%"></i>Stop sign, on its approach</label>
+<label class="legend-row"><input type="checkbox" id="show-centre" checked> <i class="sw" style="border:2px solid #e07b00;border-radius:50%"></i>Stop sign, direction unknown (at intersection)</label>
+<div class="legend-row"><i class="sw" style="background:#1f9e89"></i>Mapped town <i class="sw" style="background:#e8b23a;margin-left:8px"></i>Rules found, no list <i class="sw" style="background:#9aa5ab;margin-left:8px"></i>Not found</div></section>
+<section><h2>Towns</h2><input id="q" type="search" placeholder="Find a town"><div id="towns-list"></div></section>
+<section id="detail"><h2>Selected</h2><p class="muted">Click a town or a stop sign.</p></section>
+</aside><div class="map-wrap"><div id="map"></div></div></main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="static/map-layers.js"></script><script src="static/statewide.js"></script></body></html>
