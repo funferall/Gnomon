@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gnomon Swarm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/swarm.css"></head>
+<body>
+<header class="top">
+  <div class="mark"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 2v20M4 20h16" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 6l7 14" stroke="currentColor" stroke-width="2" fill="none" opacity=".55"/></svg>
+    <div><b>GNOMON</b><span>SWARM</span></div></div>
+  <p class="mission">Finding every Massachusetts town's <em>Traffic Rules &amp; Orders</em>, so each can be mapped like Wellesley</p>
+  <div class="live"><i id="live-dot"></i><span id="live-text">connecting</span><time id="clock"></time></div>
+</header>
+
+<section class="ribbon" aria-label="Overall progress">
+  <div class="pct"><span id="pct">0</span><small>%</small><label>towns resolved</label></div>
+  <div class="bar-wrap"><div class="bar" id="bar"></div>
+    <div class="bar-legend" id="bar-legend"></div></div>
+  <div class="clocks"><div><label>Elapsed</label><b id="elapsed">—</b></div><div><label>Rate</label><b id="rate">—</b></div><div><label>ETA</label><b id="eta">—</b></div></div>
+</section>
+
+<main class="grid">
+  <section class="panel map-panel" aria-label="Massachusetts municipalities">
+    <header><h2>350 municipalities</h2><span class="sub">Boston excluded · click a town</span></header>
+    <div class="map-wrap"><svg id="map" role="img" aria-label="Map of Massachusetts towns coloured by search status">
+      <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <radialGradient id="sweep" cx="0" cy="0" r="1"><stop offset="0" stop-color="var(--searching)" stop-opacity=".22"/><stop offset="1" stop-color="var(--searching)" stop-opacity="0"/></radialGradient></defs>
+      <g id="towns"></g><g id="pings"></g></svg>
+      <div class="tip" id="tip" hidden></div>
+      <div class="map-legend" id="map-legend"></div>
+    </div>
+  </section>
+
+  <section class="panel agents-panel" aria-label="Agents">
+    <header><h2>Agents</h2><span class="sub" id="agents-sub"></span></header>
+    <div class="agents" id="agents"></div>
+  </section>
+
+  <section class="panel feed-panel" aria-label="Live events">
+    <header><h2>Live feed</h2><span class="sub">newest first</span></header>
+    <ol class="feed" id="feed"></ol>
+  </section>
+
+  <section class="panel docs-panel" aria-label="Documents found">
+    <header><h2>Documents found</h2><span class="sub" id="docs-sub"></span>
+      <div class="filters" role="group" aria-label="Filter documents"><button data-f="all" aria-pressed="true">All</button><button data-f="found" aria-pressed="false">Mappable</button><button data-f="partial" aria-pressed="false">Partial</button></div></header>
+    <div class="docs-scroll"><table class="docs"><thead><tr><th>Town</th><th>Document</th><th>Format</th><th>Covers</th><th>Agent</th></tr></thead><tbody id="docs"></tbody></table></div>
+  </section>
+</main>
+
+<aside class="drawer" id="drawer" hidden aria-live="polite"><button class="x" id="drawer-x" aria-label="Close">×</button><div id="drawer-body"></div></aside>
+<script src="static/swarm.js"></script>
+</body></html>

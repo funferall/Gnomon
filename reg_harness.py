@@ -11,12 +11,13 @@ export   GeoJSON layers + unresolved rows with reasons
 Free-form schedules (turn prohibitions, one-way, U-turn) are handled by reg_ai.py, which reuses the validators
 and geometry here. Nothing here calls a model.
 """
-import argparse, datetime as dt, hashlib, json, math, re, shutil, subprocess, sqlite3
+import argparse, datetime as dt, hashlib, json, math, os, re, shutil, subprocess, sqlite3
 from collections import defaultdict
 from pathlib import Path
 import numpy as np, requests
 
 ROOT = Path(__file__).resolve().parent
+COUNTY_FIPS = {'Barnstable': '25001', 'Berkshire': '25003', 'Bristol': '25005', 'Dukes': '25007', 'Essex': '25009', 'Franklin': '25011', 'Hampden': '25013', 'Hampshire': '25015', 'Middlesex': '25017', 'Nantucket': '25019', 'Norfolk': '25021', 'Plymouth': '25023', 'Suffolk': '25025', 'Worcester': '25027'}
 TOWNS = {'wellesley': {'name': 'Wellesley', 'county_fips': '25021', 'doc_url': 'https://www.wellesleyma.gov/2000/Traffic-Regulations',
                        'aliases': {'route 9': 'worcester street', 'rte 9': 'worcester street', 'babson rec drive': 'babson recreation center driveway'}}}
 VERSION = 'reg-harness-v1'
@@ -46,6 +47,17 @@ UNC95 = {'stop': 9.0, 'yield': 9.0, 'rtor_prohibited': 15.0, 'rtor_permitted': 1
 
 
 def now(): return dt.datetime.now(dt.timezone.utc).isoformat()
+
+
+def town_cfg(town):
+    """Town settings: Wellesley's hand-tuned entry, otherwise built from the swarm registry (name, county, document)."""
+    if town in TOWNS: return TOWNS[town]
+    reg = ROOT / 'data' / 'regulations' / 'registry'
+    t = next(x for x in json.loads((reg / 'towns.json').read_text(encoding='utf-8'))['towns'] if x['slug'] == town)
+    d = json.loads((reg / 'towns' / f'{town}.json').read_text(encoding='utf-8')) if (reg / 'towns' / f'{town}.json').exists() else {}
+    TOWNS[town] = {'name': t['name'], 'county': t['county'], 'county_fips': COUNTY_FIPS.get(t['county']),
+                   'doc_url': (d.get('document') or {}).get('url'), 'aliases': {}}
+    return TOWNS[town]
 def town_dir(town): d = ROOT / 'data' / 'regulations' / town; d.mkdir(parents=True, exist_ok=True); return d
 
 
@@ -96,18 +108,39 @@ def norm_tokens(s):
 class Gazetteer:
     def __init__(self, town):
         import geopandas as gpd
-        cfg = TOWNS[town]
+        cfg = town_cfg(town)
         towns = gpd.read_file('zip://' + str(ROOT / 'data/towns.zip')).to_crs(26986)
-        self.boundary = towns[towns.NAME == cfg['name']].geometry.iloc[0]
-        roads = gpd.read_file('zip://' + str(ROOT / f"data/tiger_roads/tl_2024_{cfg['county_fips']}_roads.zip")).to_crs(26986)
-        roads = roads[roads.FULLNAME.notna() & roads.intersects(self.boundary.buffer(300))]
+        self.boundary = towns[towns.NAME.str.replace(r'\s+(Town|City)$', '', regex=True) == cfg['name']].geometry.iloc[0]   # Census: 'Amherst Town'
+        mg = ROOT / 'data' / 'massgis_roads.parquet'
+        if mg.exists() and os.environ.get('GNOMON_ROADS') != 'tiger':   # MassGIS Roads (statewide, full street names, municipality on each side): preferred
+            roads = gpd.read_parquet(mg); town = cfg['name'].upper()
+            near = roads.sindex.query(self.boundary.buffer(300), predicate='intersects')
+            roads = roads.iloc[near]; roads = roads[roads.ST_NAME_ST.notna()].rename(columns={'ST_NAME_ST': 'FULLNAME'})
+            self.source = 'MassGIS Roads ' + str(roads.DATE_UPD.max())[:10]
+        else:
+            roads = gpd.read_file('zip://' + str(ROOT / f"data/tiger_roads/tl_2024_{cfg['county_fips']}_roads.zip")).to_crs(26986)
+            roads = roads[roads.FULLNAME.notna() & roads.intersects(self.boundary.buffer(300))]; self.source = 'Census TIGER 2024'
+        self.display_case = True
         from shapely.ops import linemerge, unary_union
         groups = defaultdict(list)
         for name, geom in zip(roads.FULLNAME, roads.geometry): groups[' '.join(norm_tokens(name))].append(geom)
         def merge(v):
             u = unary_union(v); return linemerge(u) if u.geom_type == 'MultiLineString' else u
         self.geom = {k: merge(v) for k, v in groups.items()}
-        self.display = {' '.join(norm_tokens(n)): n for n in roads.FULLNAME}
+        if 'MassGIS' in self.source and os.environ.get('GNOMON_ROADS') != 'massgis':
+            # Hybrid: MassGIS supplies the names; TIGER supplies geometry where the same street exists there.
+            # On Wellesley, TIGER intersections sat closer to real signs (MassDOT survey: 4.8 vs 6.5 m median).
+            fips = cfg.get('county_fips') or COUNTY_FIPS.get(cfg.get('county', ''))
+            zp = ROOT / f'data/tiger_roads/tl_2024_{fips}_roads.zip'
+            if fips and zp.exists():
+                tg = gpd.read_file('zip://' + str(zp)).to_crs(26986); tg = tg[tg.FULLNAME.notna() & tg.intersects(self.boundary.buffer(300))]
+                tgroups = defaultdict(list)
+                for name, geom in zip(tg.FULLNAME, tg.geometry): tgroups[' '.join(norm_tokens(name))].append(geom)
+                swapped = 0; self.alt = dict(self.geom)   # keep MassGIS geometry for pairs TIGER cannot resolve
+                for k in self.geom:
+                    if k in tgroups: self.geom[k] = merge(tgroups[k]); swapped += 1
+                self.source += f' names + TIGER 2024 geometry for {swapped}/{len(self.geom)} streets'
+        self.display = {' '.join(norm_tokens(n)): n.title() for n in roads.FULLNAME}
         self.aliases = {' '.join(norm_tokens(k)): v for k, v in cfg.get('aliases', {}).items()}
         base = defaultdict(set)
         for k in self.geom:
@@ -167,6 +200,11 @@ def parse_table_row(gz, kind, text):
     rec['on_street'] = on; rest = toks[n:]
     if how != 'exact': rec['flags'].append('on_street_' + how)
     at = []
+    # Layout "street | direction | cross street" (e.g. Concord): consume direction words before the cross street.
+    lead_dirs = []
+    while rest and (re.fullmatch(r'(north|south)?(east|west)?(bound|erly)', rest[0]) and re.match(r'(north|south|east|west)', rest[0]) or rest[0] in ('and', 'bound') and lead_dirs):
+        if gz.resolve(rest)[2] == 'exact': break        # "Westerly Street" is a street, not a direction
+        lead_dirs.append(rest[0]); rest = rest[1:]
     while rest and rest[0] in FILLER: rest = rest[1:]
     while rest:
         a, m, how = gz.resolve(rest)
@@ -176,8 +214,8 @@ def parse_table_row(gz, kind, text):
         if rest and rest[0] == '/': rest = rest[1:]; continue
         break
     if not at: rec['flags'].append('at_street_not_in_gazetteer')
-    rec['at_streets'] = at; rec['facing_text'] = ' '.join(rest)
-    rec['directions'] = parse_directions(' '.join(rest))
+    rec['at_streets'] = at; rec['facing_text'] = ' '.join(lead_dirs + rest)
+    rec['directions'] = parse_directions(' '.join(lead_dirs)) if lead_dirs else parse_directions(' '.join(rest))
     if not rec['directions']: rec['flags'].append('no_direction_parsed')
     return rec
 
@@ -253,6 +291,25 @@ def place_on_approach(gz, street, P, travel_deg, setback=SETBACK_M, offset=OFFSE
     return {'x': x, 'y': y, 'leg_bearing': b, 'direction_error_deg': err, 'approach_point': [q.x, q.y], 'travel_unit': [tx, ty]}
 
 
+QUAL = re.compile(r'(north|south|east|west|northeast|northwest|southeast|southwest|n|s|e|w|ne|nw|se|sw)(?:erly|ern)?\s+intersection(?=\W)', re.I)
+QUAL = re.compile(r'(?<![A-Za-z])' + QUAL.pattern.lstrip('\x08'), re.I)   # word-start guard; strips a stray backspace if present
+QUAL_DIR = {'n': 'north', 's': 'south', 'e': 'east', 'w': 'west', 'ne': 'northeast', 'nw': 'northwest', 'se': 'southeast', 'sw': 'southwest'}
+
+
+def pick_by_qualifier(cand, raw):
+    """'SE intersection with Abbott Rd.' -> the candidate intersection farthest toward the south-east."""
+    m = QUAL.search(raw or '')
+    if not m or len(cand) < 2: return cand, None
+    d = math.radians(COMPASS[QUAL_DIR.get(m.group(1).lower(), m.group(1).lower())]); ux, uy = math.sin(d), math.cos(d)
+    cx = sum(p.x for p, _ in cand) / len(cand); cy = sum(p.y for p, _ in cand) / len(cand)
+    best = max(cand, key=lambda c: (c[0].x - cx) * ux + (c[0].y - cy) * uy); return [best], m.group(0)
+
+
+class AltGeometry:
+    """View of a gazetteer that uses its MassGIS geometry (hybrid fallback)."""
+    def __init__(self, gz): self.geom, self.display = gz.alt, gz.display
+
+
 def geocode(town, gz=None, recs=None, setback=SETBACK_M, offset=OFFSET_M):
     from pyproj import Transformer
     BACK = Transformer.from_crs(26986, 4326, always_xy=True)
@@ -260,16 +317,23 @@ def geocode(town, gz=None, recs=None, setback=SETBACK_M, offset=OFFSET_M):
     signs, unresolved = [], []
     for r in recs:
         if 'on_street' not in r or not r.get('at_streets'): unresolved.append({**r, 'reason': r['flags'][0] if r['flags'] else 'unparsed'}); continue
-        cand, why = [], None
+        cand, why, G = [], None, gz
         for at in r['at_streets']:
             pts, why = intersections(gz, r['on_street'], at)
             cand += [(p, at) for p in pts]
+        if not cand and getattr(gz, 'alt', None):   # hybrid fallback: MassGIS geometry for this pair
+            G = AltGeometry(gz)
+            for at in r['at_streets']:
+                pts, why = intersections(G, r['on_street'], at); cand += [(p, at) for p in pts]
+            if cand: r = {**r, 'flags': r['flags'] + ['massgis_geometry_fallback']}
         if not cand: unresolved.append({**r, 'reason': why or 'no_intersection'}); continue
+        cand, qual = pick_by_qualifier(cand, r['source']['raw'])
+        spread = max((a[0].distance(b[0]) for a in cand for b in cand), default=0)
         for travel in (r.get('directions') or [None]):
             best = None
             for P, at in cand:
                 if travel is None: continue
-                pl = place_on_approach(gz, r['on_street'], P, travel, setback, offset)
+                pl = place_on_approach(G, r['on_street'], P, travel, setback, offset)
                 if pl and (best is None or pl['direction_error_deg'] < best[0]['direction_error_deg']): best = (pl, P, at)
             if best is None:
                 P, at = cand[0]; lon, lat = BACK.transform(P.x, P.y)
@@ -278,11 +342,12 @@ def geocode(town, gz=None, recs=None, setback=SETBACK_M, offset=OFFSET_M):
             pl, P, at = best; lon, lat = BACK.transform(pl['x'], pl['y']); ilon, ilat = BACK.transform(P.x, P.y)
             flags = list(r['flags'])
             if pl['direction_error_deg'] > 60: flags.append(f"direction_mismatch_{pl['direction_error_deg']:.0f}deg")
-            if len(cand) > 1: flags.append(f'{len(cand)}_candidate_intersections')
+            if qual: flags.append('intersection_chosen_by_qualifier:' + qual.lower())
+            elif spread > 30: flags.append(f'ambiguous_{len(cand)}_intersections_{spread:.0f}m_apart')
             if why and why.startswith('near_miss'): flags.append(why)
             signs.append({**r, 'at_street': at, 'travel_deg': travel, 'facing_deg': (travel + 180) % 360, 'lon': lon, 'lat': lat, 'x': pl['x'], 'y': pl['y'],
                           'intersection': [ilon, ilat], 'approach_leg_bearing': pl['leg_bearing'], 'direction_error_deg': round(pl['direction_error_deg'], 1),
-                          'method': 'deterministic_approach_offset', 'uncertainty95_m': UNC95.get(r['kind'], 12.0), 'flags': flags})
+                          'method': 'deterministic_approach_offset', 'uncertainty95_m': UNC95.get(r['kind'], 12.0) if not (spread > 30 and not qual) else max(UNC95.get(r['kind'], 12.0), spread), 'flags': flags})
     return gz, signs, unresolved
 
 
@@ -342,7 +407,7 @@ def export(town, signs, unresolved, extra):
     (d / 'detected_not_in_regulations.geojson').write_text(json.dumps({'type': 'FeatureCollection', 'features': ex}), encoding='utf-8')
     stops = [s for s in signs if s['kind'] == 'stop']; ev = defaultdict(int)
     for s in stops: ev[s.get('evidence', 'n/a')] += 1
-    summary = {'town': town, 'version': VERSION, 'built_at': now(), 'signs_by_kind': dict(defaultdict(int, {k: sum(1 for s in signs if s['kind'] == k) for k in {s['kind'] for s in signs}})),
+    summary = {'town': town, 'version': VERSION, 'built_at': now(), 'roads': getattr(export, '_roads', None), 'signs_by_kind': dict(defaultdict(int, {k: sum(1 for s in signs if s['kind'] == k) for k in {s['kind'] for s in signs}})),
                'unresolved_rows': len(unresolved), 'unresolved_reasons': dict(defaultdict(int, {r['reason']: sum(1 for u in unresolved if u['reason'] == r['reason']) for r in unresolved})),
                'stop_sign_evidence': dict(ev), 'triangulated_stop_signs_not_in_regulations': len(extra), 'placement_residuals_vs_imagery': calibrate_offsets(signs)}
     (d / 'summary.json').write_text(json.dumps(summary, indent=1), encoding='utf-8'); print(json.dumps(summary, indent=1), flush=True); return summary
@@ -351,7 +416,7 @@ def export(town, signs, unresolved, extra):
 def run(town):
     """Place, measure the placement bias against triangulated/human evidence, and re-place once with corrected offsets.
     Leave-one-out on Wellesley (17 signs): 5.4 m -> 4.4 m median, better on 13/17."""
-    gz, recs = parse(town); gz, signs, unresolved = geocode(town, gz, recs); signs, extra = match(town, signs)
+    gz, recs = parse(town); export._roads = gz.source; gz, signs, unresolved = geocode(town, gz, recs); signs, extra = match(town, signs)
     cal = calibrate_offsets(signs)
     if cal and cal['n'] >= 10:
         setback = max(2.0, SETBACK_M - cal['along_travel_median_m']); offset = max(1.0, OFFSET_M + cal['right_of_travel_median_m'])

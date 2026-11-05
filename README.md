@@ -30,6 +30,8 @@ Towns record stop signs, turn prohibitions and one-way streets in their *Traffic
 
 ![Wellesley regulations mapped: stop signs, no-turn-on-red, prohibited turns and one-way streets](docs/regulations-map.jpg)
 
+**Statewide:** agent swarms searched all 350 municipalities except Boston (live dashboard: `swarm.html`). 40 towns are verified and mapped so far, with **3,982 stop signs**. Every document is checked for the right town before mapping.
+
 **Wellesley:** 212 of about 235 listed stop signs placed (90%), plus 8 yield signs, 18 turn-on-red rules, 7 prohibited turns and 6 one-way streets. Placement error is a 4.4 m median against imagery-triangulated signs. Model reading of the free-form schedules scored 99.5% field accuracy against hand-checked answers, at about $0.002 per document. Unplaced rows are listed with reasons for review.
 
 ```
