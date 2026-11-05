@@ -8,7 +8,8 @@
 <header class="top">
   <div class="mark"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 2v20M4 20h16" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 6l7 14" stroke="currentColor" stroke-width="2" fill="none" opacity=".55"/></svg>
     <div><b>GNOMON</b><span>SWARM</span></div></div>
-  <p class="mission">Finding every Massachusetts town's <em>Traffic Rules &amp; Orders</em>, so each can be mapped like Wellesley</p>
+  <nav class="tabs" aria-label="Swarm"><a href="#regulations">Regulations</a><a href="#gis">GIS data</a></nav>
+  <p class="mission" id="mission">Finding every Massachusetts town's <em>Traffic Rules &amp; Orders</em>, so each can be mapped like Wellesley</p>
   <div class="live"><i id="live-dot"></i><span id="live-text">connecting</span><time id="clock"></time></div>
 </header>
 
@@ -42,9 +43,9 @@
   </section>
 
   <section class="panel docs-panel" aria-label="Documents found">
-    <header><h2>Documents found</h2><span class="sub" id="docs-sub"></span>
+    <header><h2 id="docs-title">Documents found</h2><span class="sub" id="docs-sub"></span><a id="csv" class="csv" href="data/gis/gis_inventory.csv" download hidden>CSV</a>
       <div class="filters" role="group" aria-label="Filter documents"><button data-f="all" aria-pressed="true">All</button><button data-f="found" aria-pressed="false">Mappable</button><button data-f="partial" aria-pressed="false">Partial</button></div></header>
-    <div class="docs-scroll"><table class="docs"><thead><tr><th>Town</th><th>Document</th><th>Format</th><th>Covers</th><th>Agent</th></tr></thead><tbody id="docs"></tbody></table></div>
+    <div class="docs-scroll"><table class="docs"><thead><tr id="docs-head"><th>Town</th><th>Document</th><th>Format</th><th>Covers</th><th>Agent</th></tr></thead><tbody id="docs"></tbody></table></div>
   </section>
 </main>
 

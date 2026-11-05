@@ -101,3 +101,11 @@ a{color:var(--searching)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 .feed li{grid-template-columns:70px 12px 1fr auto}
 .docs td{white-space:nowrap}.docs td.covers{font-size:11px}.docs .title{max-width:280px}
+
+.tabs{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:8px;background:oklch(0.14 0.02 255 / .6)}
+.tabs a{font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-decoration:none;padding:6px 11px;border-radius:5px;transition:color .2s var(--ease),background-color .2s var(--ease)}
+.tabs a:hover{color:var(--ink)}.tabs a[aria-current="page"]{color:var(--bg);background:var(--found)}
+.csv{font:11px var(--mono);color:var(--ink2);text-decoration:none;border:1px solid var(--line);border-radius:5px;padding:3px 8px}.csv:hover{color:var(--found);border-color:var(--found)}
+.drawer .grp{margin:14px 0 4px;font:600 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.drawer .links{list-style:none;margin:0;padding:0;font-size:13px}.drawer .links li{padding:5px 0;border-bottom:1px solid oklch(0.3 0.04 250 / .35);word-break:break-word}
+.drawer .links li.bad a{color:var(--muted);text-decoration:line-through}.drawer .lyr{font:11.5px var(--mono);color:var(--ink2);margin:3px 0 0 10px}.drawer .lyr b{color:var(--found)}

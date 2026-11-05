@@ -104,7 +104,7 @@ def next_town(worker, queue=None, from_end=False):
         p.write_text(json.dumps({**d, 'slug': s, 'worker': worker, 'status': 'searching', 'previous': prev}, indent=1), encoding='utf-8')
         (REG / 'workers' / f'{worker}.json').write_text(json.dumps({'current': s}), encoding='utf-8')
         t = towns[s]; had = (prev.get('document') or {}).get('url')
-        print(f"NEXT {s} | {t['name']}, Massachusetts ({t['county']} County) | previously: {prev.get('status', 'never searched')}" + (f' | already known (lacks the stop-sign list): {had}' if had else ''))
+        print(f"NEXT {s} | {t['name']}, Massachusetts ({t['county']} County) | previously: {prev.get('status', 'never searched')}" + (f' | already known (lacks the stop-sign list): {had}' if had and REG.parent.name == 'regulations' else ''))
         return
     (REG / 'workers' / f'{worker}.json').write_text(json.dumps({'current': None, 'state': 'done'}), encoding='utf-8'); print('DONE: no towns left for', worker)
 
@@ -146,14 +146,17 @@ def read(p):
 
 def status_once(started):
     towns = {x['slug']: x for x in json.loads((REG / 'towns.json').read_text(encoding='utf-8'))['towns']}
-    assign = read(REG / 'assignments.json') or {}; owner = {s: a for a, ss in assign.items() for s in ss}
+    assign = read(REG / 'assignments.json') or {}
+    if REG.parent.name == 'gis': assign = {}   # one shared queue there; the agent cards come from workers/*.json
+    owner = {s: a for a, ss in assign.items() for s in ss}
     out_t, events = {}, []
     for p in (REG / 'towns').glob('*.json'):
         d = read(p)
         if not d: continue
         s = d.get('slug') or p.stem; m = p.stat().st_mtime
         out_t[s] = {'status': d.get('status', 'searching'), 'worker': d.get('worker') or owner.get(s), 'updated_at': iso(m), 'document': d.get('document'),
-                    'candidates': d.get('candidates', [])[:5], 'notes': (d.get('notes') or '')[:400], 'pipeline': d.get('pipeline')}
+                    'candidates': d.get('candidates', [])[:5], 'notes': (d.get('notes') or '')[:400], 'pipeline': d.get('pipeline'),
+                    **({k: d[k] for k in ('links', 'summary', 'website') if k in d})}
         events.append((m, s, out_t[s]['status'], out_t[s]['worker']))
     workers = {}
     for wf in (REG / 'workers').glob('*.json'):
@@ -184,7 +187,9 @@ def status_loop(interval):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split(chr(10))[0]); ap.add_argument('command', choices=['build', 'status', 'once', 'claim', 'next', 'submit', 'release'])
     ap.add_argument('args', nargs='*'); ap.add_argument('--worker', default='codex'); ap.add_argument('--note', default=''); ap.add_argument('--queue'); ap.add_argument('--from-end', action='store_true')
-    ap.add_argument('--agents', type=int, default=30); ap.add_argument('--interval', type=float, default=2.0); a = ap.parse_args()
+    ap.add_argument('--agents', type=int, default=30); ap.add_argument('--interval', type=float, default=2.0)
+    ap.add_argument('--kind', choices=['regulations', 'gis'], default='regulations', help='which registry: regulation documents or town GIS data'); a = ap.parse_args()
+    if a.kind == 'gis': REG = ROOT / 'data' / 'gis' / 'registry'; CLAIMS = REG / 'claims'
     if a.command == 'claim': claim(a.worker)
     elif a.command == 'next': next_town(a.worker, a.queue, a.from_end)
     elif a.command == 'release': release(a.worker, a.args[0])

@@ -36,8 +36,22 @@ Towns record stop signs, turn prohibitions and one-way streets in their *Traffic
 
 ```
 python reg_harness.py run          # parse, geocode, place, cross-check (no model)
+python reg_crosscheck.py           # stop signs: confirmed / missed where scanned / detected but not listed → review queue CSV
 python reg_ai.py all               # free-form schedules with gpt-6-luna (OPENAI_API_KEY)
 python -m http.server 8000         # → http://localhost:8000/regulations.html
+```
+
+## Town GIS data
+
+Some towns publish surveyed sign inventories. A second swarm (`swarm.html#gis`) inventoried every town's public GIS: an ArcGIS Online catalog sweep, agents reading each town website for viewers, open-data hubs and ArcGIS servers, then a script that opens every link, counts features and stop signs, and rejects same-named places in other states. **26 towns publish sign layers, 14 with stop signs (about 4,400)**, e.g. Newton, Greenfield, Danvers, Pittsfield, Marlborough, Plymouth, Needham, Canton and Reading. Reading's layer agrees with the regulation-derived stop signs to a 5 m median.
+
+The link inventory is in [gis/gis_towns.csv](gis/gis_towns.csv) (one row per town) and [gis/gis_inventory.csv](gis/gis_inventory.csv) (one row per link and layer).
+
+```
+python gis_swarm.py build && python gis_swarm.py sweep   # registry + catalog sweep
+python swarm.py status --kind gis                        # dashboard feed
+python gis_orgs.py                                       # search inside each town ArcGIS organisation
+python gis_swarm.py download                             # public sign/traffic layers → data/gis/downloads/
 ```
 
 ## Run it
