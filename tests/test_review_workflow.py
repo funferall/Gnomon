@@ -22,6 +22,13 @@ class ReviewWorkflow(unittest.TestCase):
   # Updating a placed asset with linked duplicate evidence must preserve FK integrity.
   p['revision']=1;p['lon']=-71.291;r=self.post('/api/review',p);self.assertEqual(r.status_code,200,r.text)
   undo=self.post('/api/undo',{'id':'test:one','revision':2});self.assertEqual(undo.status_code,200,undo.text);self.assertEqual(undo.json()['restored']['lon'],-71.29)
+ def test_workbench_shell_and_map_endpoints(self):
+  r=requests.get(self.url+'/');self.assertEqual(r.status_code,200);self.assertIn('Gnomon workbench',r.text);self.assertEqual(r.headers.get('Cache-Control'),'no-cache')
+  cams=requests.get(self.url+'/api/cameras').json();self.assertEqual(cams['cameras'][0][:2],['test','image']);self.assertEqual(cams['cameras'][0][4],2)
+  self.assertEqual(requests.get(self.url+'/api/estimates').json()['estimates'],[])
+  o=requests.get(self.url+'/api/observation?id=test:one').json();self.assertIsNone(o['estimate']);self.assertIsNone(o['geometry']);self.assertNotIn('raw',o)
+  self.assertEqual({d['id'] for d in o['siblings']},{'test:one','test:two'})
+  self.assertEqual(requests.get(self.url+'/data/wellesley/inventory.sqlite').status_code,404)
  def test_reject_invalid_placement_and_csrf_and_private_files(self):
   p={'id':'test:two','revision':0,'decision':'accept','label':'fire hydrant','routing_role':'infrastructure','reviewer':'tester','lon':-71.29,'lat':42.30}
   p['revision']=(requests.get(self.url+'/api/observation?id=test:two').json().get('human') or {}).get('revision',0)

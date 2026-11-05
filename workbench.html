@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gnomon workbench</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="static/workbench.css">
+<script>try{const t=JSON.parse(localStorage.getItem('gnomon-settings')||'{}').theme;if(t&&t!=='system')document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><strong>Gnomon</strong><span>Wellesley asset review</span></div>
+  <div class="stats" id="stats" aria-live="polite">Connecting…</div>
+  <div class="top-actions">
+    <label class="reviewer">Reviewer <input id="reviewer" maxlength="100" placeholder="Initials" autocomplete="off"></label>
+    <a class="toplink" href="assets.html" target="_blank" rel="noopener">Estimate map ↗</a>
+    <button type="button" id="open-help" class="ghost" title="Keyboard shortcuts">Shortcuts <kbd data-hint="help"></kbd></button>
+    <button type="button" id="open-settings" class="ghost" title="Settings">Settings <kbd data-hint="settings"></kbd></button>
+  </div>
+</header>
+
+<main id="workspace">
+  <section id="map-pane" aria-label="Map">
+    <div id="map"></div>
+    <div class="map-hud" id="map-hud" role="status" hidden></div>
+  </section>
+
+  <div id="splitter" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize map and image panes" aria-valuemin="20" aria-valuemax="80" aria-valuenow="45"></div>
+
+  <section id="work-pane" aria-label="Image review">
+    <div class="queuebar">
+      <select id="q-class" aria-label="Queue class filter"><option value="">All classes</option></select>
+      <select id="q-status" aria-label="Queue review status"><option value="unreviewed">Unreviewed</option><option value="reviewed">Reviewed</option><option value="all">All</option></select>
+      <select id="q-sort" aria-label="Queue order"><option value="low">Lowest score first</option><option value="high">Highest score first</option><option value="new">Newest image</option><option value="old">Oldest image</option></select>
+      <input id="q-search" type="search" placeholder="Find ID or text" aria-label="Search queue">
+      <div class="queue-pos">
+        <button type="button" id="q-prev" class="icon" aria-label="Previous queue item">‹</button>
+        <button type="button" id="q-list-toggle" class="queue-count" aria-expanded="false" aria-controls="queue-panel"><span id="q-pos">–</span></button>
+        <button type="button" id="q-next" class="icon" aria-label="Next queue item">›</button>
+      </div>
+    </div>
+
+    <div class="review-body">
+      <div class="imagery">
+        <div id="queue-panel" hidden><div id="queue-list" role="listbox" aria-label="Queue"></div><div class="queue-paging"><button type="button" id="q-page-prev">Previous page</button><button type="button" id="q-page-next">Next page</button></div></div>
+        <div id="stage" tabindex="-1" aria-label="Street image; scroll to zoom, drag to pan">
+          <div id="frame"><img id="photo" alt=""><div id="boxes"></div></div>
+          <p id="stage-message" class="stage-message">Loading…</p>
+        </div>
+        <div class="imagebar">
+          <div class="seg" id="views" role="group" aria-label="Panorama view"></div>
+          <div class="nav-image">
+            <button type="button" id="img-prev" aria-label="Previous image in sequence">Prev <kbd data-hint="prevImage"></kbd></button>
+            <button type="button" id="img-next" aria-label="Next image in sequence">Next <kbd data-hint="nextImage"></kbd></button>
+          </div>
+          <span class="image-meta" id="image-meta"></span>
+          <div class="ext-links">
+            <button type="button" id="zoom-fit" title="Fit image">Fit <kbd data-hint="zoomFit"></kbd></button>
+            <a id="streetview" target="_blank" rel="noopener" title="Open Google Street View at this camera, facing the object">Street View <kbd data-hint="streetView"></kbd></a>
+            <a id="source" target="_blank" rel="noopener">Source ↗</a>
+          </div>
+        </div>
+      </div>
+
+      <form id="inspector" autocomplete="off" novalidate>
+        <div class="detections" id="detections" role="listbox" aria-label="Detections in this view"></div>
+
+        <div id="editor" hidden>
+          <div class="subject">
+            <img id="crop" alt="Detection crop">
+            <div>
+              <h2 id="subject-title">—</h2>
+              <p id="subject-meta" class="meta"></p>
+              <p id="ai-line" class="meta"></p>
+            </div>
+          </div>
+
+          <fieldset class="decision" aria-label="Decision">
+            <button type="button" data-decision="accept">Accept<kbd data-hint="accept"></kbd></button>
+            <button type="button" data-decision="reject">Reject<kbd data-hint="reject"></kbd></button>
+            <button type="button" data-decision="uncertain">Unsure<kbd data-hint="uncertain"></kbd></button>
+            <button type="button" data-decision="duplicate">Duplicate<kbd data-hint="duplicate"></kbd></button>
+          </fieldset>
+
+          <div class="grid2">
+            <label>Class<select id="f-label"></select></label>
+            <label>Routing role<select id="f-role">
+              <option value="unknown">Unknown</option><option value="intersection_control">Intersection control</option><option value="turn_restriction">Turn restriction</option><option value="access_restriction">Access restriction</option><option value="speed_limit">Speed limit</option><option value="one_way">One-way</option><option value="street_name">Street name</option><option value="infrastructure">Hydrant / drain / cover</option><option value="none">No routing role</option>
+            </select></label>
+          </div>
+          <div class="classkeys" id="classkeys" aria-hidden="true"></div>
+
+          <label>Sign text
+            <span class="inline"><input id="f-text" maxlength="2000" placeholder="Exact text, or empty"><button type="button" id="ocr">Read <kbd data-hint="ocr"></kbd></button></span>
+          </label>
+
+          <section class="location" aria-label="Location">
+            <h3>Location</h3>
+            <p id="estimate-line" class="meta"></p>
+            <div class="loc-actions">
+              <button type="button" id="use-estimate">Use estimate <kbd data-hint="useEstimate"></kbd></button>
+              <button type="button" id="place">Place on map <kbd data-hint="place"></kbd></button>
+              <button type="button" id="clear-pos" class="ghost">Clear</button>
+            </div>
+            <div class="grid3">
+              <label>Latitude<input id="f-lat" readonly tabindex="-1"></label>
+              <label>Longitude<input id="f-lon" readonly tabindex="-1"></label>
+              <label>± m (95%)<input id="f-unc" type="number" min="0.1" step="0.1"></label>
+            </div>
+            <label id="dup-row" hidden>Duplicate of asset<input id="f-asset" placeholder="Click a placed asset on the map"></label>
+          </section>
+
+          <details>
+            <summary>Notes &amp; visibility</summary>
+            <label>Notes<textarea id="f-notes" rows="2" maxlength="4000"></textarea></label>
+            <div class="grid2">
+              <label>Visibility<select id="f-vis"><option>unknown</option><option>clear</option><option>tiny</option><option>blurred</option><option>glare_or_dark</option></select></label>
+              <label>Occlusion<select id="f-occ"><option>unknown</option><option>none</option><option>partial</option><option>heavy</option></select></label>
+            </div>
+          </details>
+        </div>
+
+        <div id="inspector-empty" class="empty-note">
+          <p><strong>No detection selected.</strong></p>
+          <p>Pick one from the queue above, click a box in the image, or click a camera on the map. Press <kbd data-hint="help"></kbd> for shortcuts.</p>
+        </div>
+
+        <footer class="savebar">
+          <button type="submit" id="save" class="primary" disabled>Save &amp; next <kbd data-hint="save"></kbd></button>
+          <button type="button" id="skip">Skip <kbd data-hint="skip"></kbd></button>
+          <button type="button" id="undo" disabled>Undo <kbd data-hint="undo"></kbd></button>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+        </footer>
+      </form>
+    </div>
+  </section>
+</main>
+
+<dialog id="settings" aria-labelledby="settings-title">
+  <form method="dialog" class="settings-shell">
+    <header><h2 id="settings-title">Settings</h2><button type="submit" class="icon" aria-label="Close settings">×</button></header>
+    <nav class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="general" aria-selected="true">General</button>
+      <button type="button" role="tab" data-tab="map" aria-selected="false">Map &amp; symbology</button>
+      <button type="button" role="tab" data-tab="keys" aria-selected="false">Hotkeys</button>
+    </nav>
+    <section data-panel="general" class="panel">
+      <label>Theme<select id="s-theme"><option value="system">Follow system</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+      <label>Default ± for manual placement (m)<input id="s-unc" type="number" min="0.1" step="0.1"></label>
+      <label class="check"><input type="checkbox" id="s-quick"> Reject / Unsure keys save and advance immediately</label>
+      <label class="check"><input type="checkbox" id="s-zoombox"> Zoom the image to the selected detection</label>
+      <label class="check"><input type="checkbox" id="s-follow"> Keep the map centered on the current camera</label>
+      <p class="meta">Benchmark labeling (blind and full-view audits) lives in the <a href="review.html">classic review page</a>.</p>
+    </section>
+    <section data-panel="map" class="panel" hidden>
+      <div class="grid2">
+        <label>Basemap<select id="s-basemap"></select></label>
+        <label>Marker size<input id="s-size" type="range" min="3" max="9" step="1"></label>
+      </div>
+      <fieldset class="checks"><legend>Layers</legend>
+        <label class="check"><input type="checkbox" id="s-cameras"> Cameras with detections</label>
+        <label class="check"><input type="checkbox" id="s-est-multi"> Estimated positions · triangulated</label>
+        <label class="check"><input type="checkbox" id="s-est-single"> Estimated positions · single view</label>
+        <label class="check"><input type="checkbox" id="s-placed"> Placed assets (reviewed)</label>
+        <label class="check"><input type="checkbox" id="s-rays"> Rays and uncertainty for the selection</label>
+      </fieldset>
+      <fieldset><legend>Class colors</legend><div id="s-colors" class="colors"></div><button type="button" id="s-colors-reset" class="ghost">Reset colors</button></fieldset>
+    </section>
+    <section data-panel="keys" class="panel" hidden>
+      <p class="meta">Click a key, then press the new combination. Esc cancels; Backspace clears.</p>
+      <table class="keys"><tbody id="s-keys"></tbody></table>
+      <button type="button" id="s-keys-reset" class="ghost">Reset all hotkeys</button>
+    </section>
+  </form>
+</dialog>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="static/map-layers.js"></script>
+<script src="static/camera-positions.js"></script>
+<script src="static/vision-ocr.js"></script>
+<script src="static/workbench.js"></script>
+</body></html>

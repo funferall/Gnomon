@@ -4,6 +4,35 @@ from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse,parse_qs,unquote
 from review_store import connect,observation,ROOT,OUT,LABELS,now
+TO_LONLAT=None
+def lonlat(x,y):
+ global TO_LONLAT
+ if TO_LONLAT is None:
+  from pyproj import Transformer;TO_LONLAT=Transformer.from_crs(26986,4326,always_xy=True)
+ return TO_LONLAT.transform(x,y)
+def table_exists(c,name):return bool(c.execute("select 1 from sqlite_master where type='table' and name=?",(name,)).fetchone())
+def view_detections(c,provider,image_id,view_file):
+ out=[]
+ for r in c.execute('select o.id,o.label,o.score,o.box,h.decision,h.label human_label from observations o left join human_reviews h on h.observation_id=o.id where o.provider=? and o.image_id=?',(provider,image_id)):
+  b=json.loads(r['box'])
+  if b.get('view_file')==view_file:out.append({'id':r['id'],'label':r['label'],'score':r['score'],'box':b,'decision':r['decision'],'human_label':r['human_label']})
+ return out
+def workbench_context(c,x):
+ # Machine geometry and estimate for one observation: provisional, never a reviewed position.
+ x['geometry']=None;x['estimate']=None
+ if table_exists(c,'observation_geometry'):
+  g=c.execute('select state,azimuth_deg,elevation_deg,range_m,range_sigma_log,camera_x,camera_y,x,y,cues,flags from observation_geometry where observation_id=?',(x['id'],)).fetchone()
+  if g:
+   g=dict(g);g['cues']=json.loads(g['cues']);g['flags']=json.loads(g['flags']);g['camera']=list(lonlat(g.pop('camera_x'),g.pop('camera_y')));px,py=g.pop('x'),g.pop('y');g['position']=list(lonlat(px,py)) if px is not None else None;x['geometry']=g
+ if table_exists(c,'asset_estimates'):
+  e=c.execute('select a.id,a.class,a.state,a.lon,a.lat,a.uncertainty95_m,a.ellipse,a.n_observations,a.n_sequences,a.max_ray_angle_deg from asset_estimate_evidence v join asset_estimates a on a.id=v.asset_estimate_id where v.observation_id=?',(x['id'],)).fetchone()
+  if e:
+   e=dict(e);e['ellipse']=json.loads(e['ellipse']);rays=[]
+   if table_exists(c,'observation_geometry'):
+    for r in c.execute('select g.camera_x,g.camera_y from asset_estimate_evidence v join observation_geometry g on g.observation_id=v.observation_id where v.asset_estimate_id=?',(e['id'],)):rays.append(list(lonlat(r[0],r[1])))
+   e['cameras']=rays;x['estimate']=e
+ x['siblings']=view_detections(c,x['provider'],x['image_id'],x['box'].get('view_file'))
+ x.pop('raw',None);return x
 TOKEN=secrets.token_urlsafe(32)
 def setup():
  c=connect();__import__('position_quality').setup(c);c.execute('create table if not exists frame_labels(benchmark_id TEXT,item_id TEXT,objects TEXT,reviewer TEXT,updated_at TEXT,PRIMARY KEY(benchmark_id,item_id))');c.commit();c.close()
@@ -67,7 +96,14 @@ class Handler(BaseHTTPRequestHandler):
    if path=='/api/session':return self.respond({'token':TOKEN,'labels':LABELS,'benchmarks':[dict(r) for r in c.execute('select benchmark_id,count(*) items from benchmark_items group by benchmark_id')]})
    if path=='/api/stats':return self.respond({'images':dict(c.execute('select status,count(*) from images group by status')),'observations':c.execute('select count(*) from observations').fetchone()[0],'reviews':dict(c.execute('select decision,count(*) from human_reviews group by decision')),'placed_assets':c.execute("select count(*) from assets where review='human_placed'").fetchone()[0],'ai':c.execute('select count(*) from verifications').fetchone()[0]})
    if path=='/api/observation':
-    r=observation(c,q.get('id'));return self.respond(r if r else {'error':'Not found'},200 if r else 404)
+    r=observation(c,q.get('id'));return self.respond(workbench_context(c,r) if r else {'error':'Not found'},200 if r else 404)
+   if path=='/api/cameras':
+    rows=c.execute('select i.provider,i.id,i.lon,i.lat,count(o.id),count(h.observation_id) from images i join observations o on o.provider=i.provider and o.image_id=i.id left join human_reviews h on h.observation_id=o.id group by i.provider,i.id').fetchall()
+    return self.respond({'fields':['provider','image_id','lon','lat','detections','reviewed'],'cameras':[list(r) for r in rows]})
+   if path=='/api/estimates':
+    if not table_exists(c,'asset_estimates'):return self.respond({'fields':[],'estimates':[]})
+    rows=c.execute('select a.id,a.class,a.state,a.lon,a.lat,a.uncertainty95_m,a.n_observations,(select min(observation_id) from asset_estimate_evidence v where v.asset_estimate_id=a.id) from asset_estimates a').fetchall()
+    return self.respond({'fields':['id','class','state','lon','lat','uncertainty95_m','n_observations','observation_id'],'estimates':[list(r) for r in rows]})
    if path=='/api/queue':
     where=[];args=[];joins=''
     if q.get('benchmark'):joins=' join benchmark_items b on b.observation_id=o.id and b.kind="candidate" ';where.append('b.benchmark_id=?');args.append(q['benchmark'])
@@ -90,9 +126,7 @@ class Handler(BaseHTTPRequestHandler):
      candidate=c.execute('select * from images'+where+' order by coalesce(captured,"") '+order+',provider '+order+',id '+order+' limit 1',args).fetchone();fallback=q.get('order','sequence')=='sequence'
     if not candidate:return self.respond({'end':True})
     candidate=dict(candidate);base=ROOT/'data/wellesley/views'/candidate['provider'];views=sorted(base.glob(candidate['id']+'_*.jpg'));names={v.stem.rsplit('_',1)[-1]:str(v.relative_to(ROOT)).replace('\\','/') for v in views};preferred=q.get('view','front');preferred=preferred if preferred in names else 'flat' if 'flat' in names else 'front' if 'front' in names else next(iter(names),'')
-    viewfile=names.get(preferred,f"data/wellesley/images/{candidate['provider']}/{candidate['id']}.jpg");observations=[]
-    for r in c.execute('select id,label,box from observations where provider=? and image_id=?',(candidate['provider'],candidate['id'])):
-     if json.loads(r['box']).get('view_file')==viewfile:observations.append({'id':r['id'],'label':r['label']})
+    viewfile=names.get(preferred,f"data/wellesley/images/{candidate['provider']}/{candidate['id']}.jpg");observations=view_detections(c,candidate['provider'],candidate['id'],viewfile)
     return self.respond({'image':{'provider':candidate['provider'],'image_id':candidate['id'],'captured':candidate['captured'],'camera_lon':candidate['lon'],'camera_lat':candidate['lat'],'rights':json.loads(candidate['rights'])},'view_file':viewfile,'view_name':preferred,'views':list(names),'observations':observations,'sequence_fallback':fallback})
    if path=='/api/assets':
     features=[]
@@ -110,10 +144,11 @@ class Handler(BaseHTTPRequestHandler):
     return self.respond(json.loads(r.read_text()) if r.exists() else {})
    if path.startswith('/api/'):return self.respond({'error':'Not found'},404)
   finally:c.close()
-  rel='review.html' if path=='/' else path.lstrip('/');file=(ROOT/rel).resolve()
-  allowed=rel in ['review.html','static/review.css','static/review.js','static/map-layers.js','static/camera-positions.js','data/wellesley/position-quality.json'] or (rel.startswith('data/wellesley/') and file.suffix.lower() in ['.jpg','.png','.webp'] and any('/'+k+'/' in '/'+rel for k in ['crops','views','images']))
-  if not file.is_relative_to(ROOT) or not allowed or (rel.startswith('data/') and rel!='data/wellesley/position-quality.json' and not any(file.is_relative_to(ROOT/'data/wellesley'/k) for k in ['crops','views','images'])) or not file.is_file():return self.respond({'error':'Not found'},404)
-  data=file.read_bytes();self.send_response(200);self.send_header('Content-Type',mimetypes.guess_type(str(file))[0] or 'application/octet-stream');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
+  rel='workbench.html' if path=='/' else path.lstrip('/');file=(ROOT/rel).resolve()
+  DATA_FILES={'data/wellesley/position-quality.json','data/wellesley/asset-estimates.geojson','data/wellesley/asset-estimates-summary.json','data/wellesley/ground_truth/wellesley_hydrants.geojson'}
+  allowed=rel in ['workbench.html','static/workbench.css','static/workbench.js','static/vision-ocr.js','review.html','static/review.css','static/review.js','static/map-layers.js','static/camera-positions.js','assets.html','static/assets.css','static/asset-estimates.js'] or rel in DATA_FILES or (rel.startswith('data/wellesley/') and file.suffix.lower() in ['.jpg','.png','.webp'] and any('/'+k+'/' in '/'+rel for k in ['crops','views','images']))
+  if not file.is_relative_to(ROOT) or not allowed or (rel.startswith('data/') and rel not in DATA_FILES and not any(file.is_relative_to(ROOT/'data/wellesley'/k) for k in ['crops','views','images'])) or not file.is_file():return self.respond({'error':'Not found'},404)
+  data=file.read_bytes();self.send_response(200);self.send_header('Content-Type',mimetypes.guess_type(str(file))[0] or 'application/octet-stream');self.send_header('Content-Length',str(len(data)));self.send_header('Cache-Control','no-cache' if file.suffix in ['.html','.js','.css','.json'] else 'max-age=86400');self.end_headers();self.wfile.write(data)
  def do_POST(self):
   origin=self.headers.get('Origin');port=self.server.server_port
   if self.headers.get('X-Review-Token')!=TOKEN or (origin and origin not in [f'http://localhost:{port}',f'http://127.0.0.1:{port}']):return self.respond({'error':'Reload the local app session.'},403)
@@ -154,4 +189,4 @@ class Handler(BaseHTTPRequestHandler):
   except Exception:self.respond({'error':'Save failed; your form is retained. Retry.'},500)
 
 if __name__=='__main__':
- p=argparse.ArgumentParser();p.add_argument('--port',type=int,default=8001);a=p.parse_args();setup();print(f'Review app: http://localhost:{a.port}',flush=True);ThreadingHTTPServer(('127.0.0.1',a.port),Handler).serve_forever()
+ p=argparse.ArgumentParser();p.add_argument('--port',type=int,default=8001);a=p.parse_args();setup();print(f'Gnomon workbench: http://localhost:{a.port}  (benchmark labeling: /review.html)',flush=True);ThreadingHTTPServer(('127.0.0.1',a.port),Handler).serve_forever()
